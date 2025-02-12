@@ -1,0 +1,42 @@
+name: CD Pipeline
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    # Only run if the PR was merged (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create deployment tag
+        run: |
+          git tag deploy-$(date +%Y%m%d-%H%M%S)
+          git push origin --tags
+
+      - name: Create deployment marker
+        run: |
+          echo "Deployment triggered at $(date)" >> deployments.log
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add deployments.log
+          git commit -m "Update deployment log [skip ci]"
+          git push
